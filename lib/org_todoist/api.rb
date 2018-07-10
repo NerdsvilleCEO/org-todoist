@@ -92,25 +92,24 @@ module OrgTodoist
       @new_models.each do |model|
         # debug
         log.info "swap_temp_ids() for #{model.inspect}"
-        log.info res.body['TempIdMapping']
+        log.info res.body['temp_id_mapping']
         # p res.body
         # p model.temp_id
-        if id = res.body['TempIdMapping'][model.temp_id]
+        if id = res.body['temp_id_mapping'][model.temp_id]
           model.swap_temp_id id
         else
-          log.info "Missing TempIdMapping for #{model.inspect}"
+          log.info "Missing temp_id_mapping for #{model.inspect}"
         end
       end
     end
 
     class Handler
       def initialize res=nil
-        @seq_no        = res ? res.body['seq_no']        : 0
-        @seq_no_global = res ? res.body['seq_no_global'] : 0
+        @sync_token    = res ? res.body['sync_token'] : "*"
       end
 
       def to_h
-        {seq_no: @seq_no, seq_no_global: @seq_no_global}
+        {sync_token: @sync_token}
       end
     end
 
@@ -157,15 +156,15 @@ module OrgTodoist
         end
 
         # p @body
-        if @body['SyncStatus']
-          @body['SyncStatus'].each do |key, value|
+        if @body['sync_status']
+          @body['sync_status'].each do |key, value|
             if value == 'ok'
               # {uuid => 'ok'}
-              log.info "SyncStatus is OK key:#{key}, value:#{value}"
+              log.info "sync_status is OK key:#{key}, value:#{value}"
             elsif value.is_a?(Hash) && value.values.all?{ |x| x == 'ok' }
               # {uuid => {id => 'ok'}}
             else
-              log.error "SyncStatus is error key:#{key}, value:#{value} - #{raw_res['SyncStatus']}"
+              log.error "sync_status is error key:#{key}, value:#{value} - #{raw_res['sync_status']}"
             end
           end
         end

@@ -1,0 +1,150 @@
+* org-todoist
+
+  Sync TODOs between a emacs org-mode file and Todoist.
+
+  Todoist limits some API features to premium users, so it is recommended to have a premium account.
+
+** How it works
+
+   `org-todoist` syncs your org-mode file and Todoist tasks by following steps.
+
+   1. Pull all Todoist tasks
+   2. Parse the org-mode file
+   3. Update Todoist tasks by org-mode tasks
+      - Find a org-mode task by ID (in the PROPERTIES section)
+      - Update the Todoist task by the org-mode task
+   4. Push changed tasks to Todoist
+   5. Export org-mode file
+
+*** TODO Update for clarity :noexport:
+
+    : Sun Jul  8 10:11:31 CDT 2018
+
+    The steps here are a little unclear to me at the moment. Would like to better understand the
+    library first, determine if the experienced behavior is to be expected, add specs to assert
+    truth, determine if functional changes need to take place and then update this instruction
+    to reflect the truth.
+
+** Install
+
+   : bundle install
+
+** Configuration
+
+   1. Find your API token from [[https://todoist.com/Users/viewPrefs?page=account][your account page]]
+   2. Write a configration file
+      - `cp sample.env .env`
+      - Update with your API token in `.env` file
+
+** Backup
+
+   *Please backup your org-mode files and Todoist project before sync*
+
+   [[https://blog.todoist.com/2012/11/30/accidentally-delete-a-project-retrieve-it-from-a-backup/][Todoist backup]]
+
+** Run
+
+   : ruby ./sync.rb sample.org updated_sample.org
+
+* TODO Issues :noexport:
+
+** TODO Duplicates projects
+
+* TODO Tasks                                                       :noexport:
+
+** DONE Update this document from READE.md
+** TODO Update for api v7
+
+   https://developer.todoist.com/sync/v7/#changes
+
+   Migration guide
+   The new v7 Todoist API is still based on the original Todoist Sync API 
+   (as was the case for the v6 API), so the differences between the two APIs 
+   aren’t as extended as those between the v5 and v6.
+
+   The main difference between the two APIs is that the seq_no, 
+   ie. the sequence number which was basically an always increasing number, 
+   is not used anymore to implement the incremental sync functionality, 
+   but instead the sync_token has been introduced, a string hash value. 
+   So in order to do the initial full sync instead of seq_no=0, one needs to 
+   send sync_token=*. Other than, the last known value of sync_token 
+   should be used in order to an incremental sync, similar to what was done 
+   before with the seq_no.
+
+   Here follows a list of various minor changes from the previous API version:
+
+   The sync_token value is not returned by the sync call anymore, but the sync_token and the full_sync variables are returned instead.
+   The sync call now returns all objects in underscore naming convention, instead of CamelCase, so the Collaborators, CollaboratorStates, DayOrders, Filters, Items, Labels, LiveNotifications, LiveNotificationsLastRead, Notes, Projects, Reminders, SettingsNotifications, SyncStatus, TempIdMapping, and User objects, where renamed to collaborators, collaborator_states, day_orders, filters, items, labels, live_notifications, live_notifications_last_read, notes, projects, reminders, settings_notifications, sync_status, temp_id_mapping, and user, respectively
+   The DayOrdersTimestamp has been deprecated, and instead the sync_token is used to keep track of updates.
+   The UserId variable is not returned by the sync call anymore.
+   The timezone and tz_offset properties of the user were replaced by the tz_info object.
+   The is_dummy and guide_mode properties of the user were removed.
+   The has_push_reminders, beta, restrictions, and dateist_inline_disabled properties of the user were moved to the features object.
+   The uid property of labels was removed.
+   The user_id property of filters was removed.
+   The due_date property of reminders was removed.
+   The user_id, archived_date, and archived_timestamp properties of projects were removed.
+   The due_date property of items was removed.
+   Only 10 notes per item are returned with the sync call and thus the get_item call should be used for more.
+
+*** DONE Update to use sync_token instead of seq_no
+
+       The main difference between the two APIs is that the seq_no, 
+   ie. the sequence number which was basically an always increasing number, 
+   is not used anymore to implement the incremental sync functionality, 
+   but instead the sync_token has been introduced, a string hash value. 
+   So in order to do the initial full sync instead of seq_no=0, one needs to 
+   send sync_token=*. Other than, the last known value of sync_token 
+   should be used in order to an incremental sync, similar to what was done 
+   before with the seq_no.
+
+   [[./lib/org_todoist/api.rb]]
+
+   #+BEGIN_SRC ruby
+     class Handler
+       def initialize res=nil
+         @sync_token    = res ? res.body['sync_token'] : "*"
+       end
+
+       def to_h
+         {sync_token: @sync_token}
+       end
+     end
+   #+END_SRC
+
+   #+BEGIN_SRC diff
+        class Handler
+            def initialize res=nil
+     -        @seq_no        = res ? res.body['seq_no']        : 0
+     -        @seq_no_global = res ? res.body['seq_no_global'] : 0
+     +        @sync_token    = res ? res.body['sync_token'] : "*"
+            end
+
+            def to_h
+     -        {seq_no: @seq_no, seq_no_global: @seq_no_global}
+     +        {sync_token: @sync_token}
+            end
+          end
+   #+END_SRC
+
+**** TODO The sync_token value is not returned by the sync call anymore, but the sync_token and the full_sync variables are returned instead.
+*** DONE The sync call now returns all objects in underscore naming convention, instead of CamelCase, 
+
+    | Collaborators | CollaboratorStates  | DayOrders  | Filters | Items | Labels | LiveNotifications  | LiveNotificationsLastRead    | Notes | Projects | Reminders | SettingsNotifications  | SyncStatus  | TempIdMapping   | User |
+    | collaborators | collaborator_states | day_orders | filters | items | labels | live_notifications | live_notifications_last_read | notes | projects | reminders | settings_notifications | sync_status | temp_id_mapping | user |
+
+*** TODO The DayOrdersTimestamp has been deprecated, and instead the sync_token is used to keep track of updates.
+*** TODO The UserId variable is not returned by the sync call anymore.
+*** TODO The timezone and tz_offset properties of the user were replaced by the tz_info object.
+*** TODO The is_dummy and guide_mode properties of the user were removed.
+*** TODO The has_push_reminders, beta, restrictions, and dateist_inline_disabled properties of the user were moved to the features object.
+*** TODO The uid property of labels was removed.
+*** TODO The user_id property of filters was removed.
+*** TODO The due_date property of reminders was removed.
+*** TODO The user_id, archived_date, and archived_timestamp properties of projects were removed.
+*** TODO The due_date property of items was removed.
+*** TODO Only 10 notes per item are returned with the sync call and thus the get_item call should be used for more.
+
+** TODO Add rspec
+** TODO Build up CLI
+** TODO Document org-todoist syntax
